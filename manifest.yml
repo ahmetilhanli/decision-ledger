@@ -1,0 +1,192 @@
+modules:
+  rovo:agent:
+    - key: decision-ledger-agent
+      name: Decision Ledger
+      description: Knows what was decided, why, and whether it is still in force.
+        Records decisions on Jira issues and finds them again before work
+        starts.
+      prompt: |
+        You are Decision Ledger. Teams lose time re-deciding things and building against decisions nobody remembers.
+        A decision is a statement of what was decided plus the reason, recorded on the Jira issue where it was made.
+        A decision is either in force (active) or superseded by a later one.
+
+        What you can do:
+        - Use find-decisions to check whether something has already been decided. Search with the key nouns of the topic.
+        - Use get-decisions to list the decisions on one issue, including superseded ones.
+        - Use record-decision to record a decision. Ask for the issue key, the statement and the rationale if the user
+          did not give them. If the new decision replaces an earlier one on the same issue, pass that decision's id as supersedesId.
+        - Use withdraw-decision to retire a decision that no longer applies and has no replacement.
+        - record-decision also returns relatedElsewhere, the decisions in force on other issues about the same topic.
+          If it is not empty, tell the user which issues to check for a contradiction.
+        - To list decisions that are due for review, call find-decisions with dueOnly set to true.
+
+        Rules:
+        - Report exactly what the actions return. If an action fails, say so and show the error.
+        - Never state that something was decided unless an action returned that decision. Quote the statement and name the issue key.
+        - If find-decisions returns nothing, say that no recorded decision was found. Do not say that nothing was decided.
+        - Never invent a rationale. If the user gives no reason, ask for it.
+        - Keep answers short: the verdict first, then the decisions as a list with issue keys.
+      conversationStarters:
+        - Has anything been decided about pricing?
+        - What decisions are in force in this project?
+        - Record a decision on an issue
+      actions:
+        - find-decisions
+        - get-decisions
+        - record-decision
+        - withdraw-decision
+  action:
+    - key: find-decisions
+      name: Find decisions in force
+      function: findDecisions
+      actionVerb: GET
+      description: Searches the decisions that are still in force across Jira issues.
+        Use before starting work or answering "has this been decided?".
+      inputs:
+        query:
+          title: Topic
+          type: string
+          required: false
+          description: Key words of the topic, for example "annual billing refunds". Leave
+            empty to list the most recent decisions.
+        projectKey:
+          title: Project key
+          type: string
+          required: false
+          description: Limit the search to one Jira project, for example OPS. Leave empty
+            for all projects.
+        dueOnly:
+          title: Review due only
+          type: boolean
+          required: false
+          description: Set to true to list only decisions whose review date has passed.
+    - key: get-decisions
+      name: Get decisions on an issue
+      function: getDecisions
+      actionVerb: GET
+      description: Returns every decision recorded on a Jira issue, in force and superseded.
+      inputs:
+        issueKey:
+          title: Issue key
+          type: string
+          required: true
+          description: The Jira issue key, for example OPS-12.
+    - key: record-decision
+      name: Record a decision
+      function: recordDecision
+      actionVerb: CREATE
+      description: Records a decision (statement and rationale) on a Jira issue. Can
+        supersede an earlier decision on the same issue.
+      inputs:
+        issueKey:
+          title: Issue key
+          type: string
+          required: true
+          description: The Jira issue where the decision was made, for example OPS-12.
+        statement:
+          title: Decision
+          type: string
+          required: true
+          description: What was decided, in one or two sentences.
+        rationale:
+          title: Rationale
+          type: string
+          required: true
+          description: "Why it was decided - the reason, the trade-off, the evidence."
+        url:
+          title: Link
+          type: string
+          required: false
+          description: A link to the meeting notes, page or thread. Leave empty if there
+            is none.
+        reviewBy:
+          title: Review by
+          type: string
+          required: false
+          description: Optional date (YYYY-MM-DD) when this decision should be looked at again. Leave empty if none.
+        supersedesId:
+          title: Supersedes
+          type: string
+          required: false
+          description: The id of an earlier decision on the same issue that this one
+            replaces, for example d-abc123. Leave empty otherwise.
+    - key: withdraw-decision
+      name: Withdraw a decision
+      function: withdrawDecision
+      actionVerb: UPDATE
+      description: Marks a decision as no longer in force without replacing it.
+      inputs:
+        issueKey:
+          title: Issue key
+          type: string
+          required: true
+          description: The Jira issue key, for example OPS-12.
+        decisionId:
+          title: Decision id
+          type: string
+          required: true
+          description: The id of the decision to withdraw, for example d-abc123.
+  rovo:mcp:
+    - key: decision-ledger-mcp
+      name: Decision Ledger
+      tools:
+        - find-decisions
+        - get-decisions
+        - record-decision
+        - withdraw-decision
+  rovo:skill:
+    - key: decision-ledger-skill
+      source:
+        dir: skills/decision-ledger
+      dependencies:
+        tools:
+          - find-decisions
+          - get-decisions
+          - record-decision
+          - withdraw-decision
+  jira:issuePanel:
+    - key: decision-ledger-panel
+      resource: panel
+      render: native
+      title: Decision Ledger
+      icon: https://developer.atlassian.com/platform/forge/images/icons/issue-panel-icon.svg
+  jira:projectPage:
+    - key: decision-ledger-log
+      resource: log
+      render: native
+      title: Decision log
+  jira:entityProperty:
+    - key: decision-ledger-index
+      entityType: issue
+      propertyKey: decision-ledger
+      values:
+        - path: text
+          type: text
+          searchAlias: decisionText
+        - path: activeCount
+          type: number
+          searchAlias: activeDecisions
+  function:
+    - key: findDecisions
+      handler: index.findDecisions
+    - key: getDecisions
+      handler: index.getDecisions
+    - key: recordDecision
+      handler: index.recordDecision
+    - key: withdrawDecision
+      handler: index.withdrawDecision
+resources:
+  - key: panel
+    path: src/frontend/index.jsx
+  - key: log
+    path: src/frontend/log.jsx
+permissions:
+  scopes:
+    - read:jira-work
+    - write:jira-work
+app:
+  runtime:
+    name: nodejs24.x
+    memoryMB: 256
+    architecture: arm64
+  id: ari:cloud:ecosystem::app/d9a784c4-f0fd-403e-82e8-c9e3f847e6b8

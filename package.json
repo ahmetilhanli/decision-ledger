@@ -1,0 +1,18 @@
+{
+  "name": "decision-ledger",
+  "version": "0.1.0",
+  "description": "Decision Ledger: what was decided, why, and is it still in force. Jira panel, Rovo agent and MCP tools.",
+  "main": "src/index.js",
+  "private": true,
+  "license": "Apache-2.0",
+  "type": "module",
+  "scripts": {
+    "test": "node --test tests/decisions.test.mjs tests/handlers.test.mjs"
+  },
+  "dependencies": {
+    "@forge/api": "^8.5.0",
+    "@forge/bridge": "^7.3.0",
+    "@forge/react": "^12.5.0",
+    "react": "^18.3.1"
+  }
+}

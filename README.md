@@ -39,10 +39,27 @@ forge deploy
 forge install
 ```
 
+## Connect a coding agent (MCP)
+
+External MCP access is off by default and is switched on per site by an admin:
+
+1. Atlassian Administration > Apps > Sites > your site > Connected apps > **decision-ledger** > app details.
+2. Under **Tools**, choose **Enable tools** and confirm.
+3. Add the server to your MCP client. The URL is `https://mcp.atlassian.com/forge/<appId>`, where `<appId>` is the UUID in `app.id` of `manifest.yml`. For Claude Code:
+
+   ```
+   claude mcp add --transport http decision-ledger https://mcp.atlassian.com/forge/<appId>
+   ```
+
+4. Sign in when the client asks (`/mcp` in Claude Code). Atlassian shows a consent screen; pick the site.
+
+The four tools then run as the signed-in user, with that user's Jira permissions.
+
 ## Status and limits
 
 - Tested on one live Jira Cloud site: recording from the panel, replace and history, review-date validation, the "already decided elsewhere" box, the conflict hint, the project page search, and the Rovo agent finding and recording a decision.
-- Not yet tested: calling the MCP tools from an external agent; the withdraw action through the agent; the scan fallback on a live site (covered by a unit test only).
+- MCP tested from Claude Code on the same site (15 Nov 2026): all four tools called through `mcp.atlassian.com`, including a record that returned the related decisions on other issues, and a withdraw.
+- Not yet tested: the withdraw action through the Rovo agent; the scan fallback on a live site (covered by a unit test only).
 - Matching is by key words and simple stems, not by meaning. "Refund" finds "refunds"; it does not find "money back". The conflict hint says two decisions share a topic, not that they contradict.
 - The search index lags a few seconds behind a save.
 - An empty search result means no recorded decision was found. It does not prove nothing was decided.
